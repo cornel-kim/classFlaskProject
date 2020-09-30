@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 import pymysql
 
 app = Flask(__name__)
+app.secret_key = '123kk'
 
 
 @app.route("/")
@@ -45,6 +46,44 @@ def view():
     else:
         rows = cursor.fetchall()
         return render_template("view.html", rows=rows)
+
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    msg = ''
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = pymysql.connect("localhost", "root", "", "users")
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM user WHERE username= %s AND password = %s ', (username, password,))
+        result = cursor.fetchone()
+        if result:
+            session['logged'] = True
+
+            session['username'] = result[0]
+            msg = 'logged in successfully'
+            return render_template("view_profile.html", result=result)
+        else:
+            msg = 'input correct user details'
+            return render_template("login.html")
+    else:
+
+        return render_template("login.html")
+
+
+@app.route('/view_profile', methods=['POST', 'GET'])
+def view_profile():
+    if 'logged' in session:
+        conn = pymysql.connect("localhost", "root", "", "users")
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM user WHERE username= %s', (session['username']))
+        result = cursor.fetchone()
+        return render_template('view_profile.html', result=result)
+    else:
+        return render_template("login.html")
 
 
 if __name__ == "__main__":
